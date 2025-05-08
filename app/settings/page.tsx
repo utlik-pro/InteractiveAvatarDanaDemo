@@ -6,9 +6,11 @@ import { StartAvatarRequest, AvatarQuality } from "@heygen/streaming-avatar";
 import { AVATARS } from "@/app/lib/constants";
 
 export default function SettingsPage() {
-  const [config, setConfig] = useState<StartAvatarRequest>(() => {
+  const [config, setConfig] = useState<StartAvatarRequest | null>(null);
+
+  useEffect(() => {
     const stored = localStorage.getItem("avatarConfig");
-    return stored
+    const initialConfig: StartAvatarRequest = stored
       ? JSON.parse(stored)
       : {
           quality: AvatarQuality.Low,
@@ -18,11 +20,16 @@ export default function SettingsPage() {
             voiceId: "default",
           },
         };
-  });
+    setConfig(initialConfig);
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem("avatarConfig", JSON.stringify(config));
+    if (config) {
+      localStorage.setItem("avatarConfig", JSON.stringify(config));
+    }
   }, [config]);
+
+  if (!config) return <div className="p-10">Загрузка настроек...</div>;
 
   return (
     <div className="w-full min-h-screen p-10 bg-gray-100">
