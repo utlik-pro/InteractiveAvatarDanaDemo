@@ -34,16 +34,16 @@ export const useStreamingAvatarSession = () => {
   useMessageHistory();
 
   const init = useCallback(
-    (token: string) => {
-      avatarRef.current = new StreamingAvatar({
-        token,
-        basePath: basePath,
-      });
+  (token: string) => {
+    avatarRef.current = new StreamingAvatar({
+      token,
+      basePath: "https://streaming.heygen.com", // 🔧 исправлено
+    });
 
-      return avatarRef.current;
-    },
-    [basePath, avatarRef],
-  );
+    return avatarRef.current;
+  },
+  [avatarRef], // убрал зависимость basePath, она больше не нужна
+);
 
   const handleStream = useCallback(
     ({ detail }: { detail: MediaStream }) => {
