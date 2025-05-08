@@ -6,12 +6,13 @@ import {
 } from "@heygen/streaming-avatar";
 
 import { useEffect } from "react";
-import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
 import { StreamingAvatarProvider } from "./logic";
 import { AVATARS } from "@/app/lib/constants";
+
+import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 
 const defaultConfig: StartAvatarRequest = {
   quality: AvatarQuality.Low,
@@ -22,7 +23,7 @@ const defaultConfig: StartAvatarRequest = {
   },
 };
 
-export default function InteractiveAvatar() {
+const AvatarSessionWrapper = () => {
   const { startAvatar } = useStreamingAvatarSession();
 
   useEffect(() => {
@@ -32,15 +33,21 @@ export default function InteractiveAvatar() {
       : defaultConfig;
 
     startAvatar(config);
-  }, []);
+  }, [startAvatar]);
 
   return (
+    <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+      <AvatarVideo />
+      <AvatarControls />
+      <MessageHistory />
+    </div>
+  );
+};
+
+export default function InteractiveAvatar() {
+  return (
     <StreamingAvatarProvider>
-      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-        <AvatarVideo />
-        <AvatarControls />
-        <MessageHistory />
-      </div>
+      <AvatarSessionWrapper />
     </StreamingAvatarProvider>
   );
 }
