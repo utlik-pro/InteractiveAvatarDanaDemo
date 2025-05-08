@@ -15,6 +15,7 @@ import { AVATARS } from "@/app/lib/constants";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 
 const defaultConfig: StartAvatarRequest = {
+  token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "",
   quality: AvatarQuality.Low,
   avatarName: AVATARS[0].avatar_id,
   knowledgeId: undefined,
@@ -29,7 +30,7 @@ const AvatarSessionWrapper = () => {
   useEffect(() => {
     const stored = localStorage.getItem("avatarConfig");
     const config: StartAvatarRequest = stored
-      ? JSON.parse(stored)
+      ? { ...JSON.parse(stored), token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "" }
       : defaultConfig;
 
     startAvatar(config);
