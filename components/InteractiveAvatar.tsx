@@ -20,13 +20,16 @@ export default function InteractiveAvatar() {
 
   useEffect(() => {
     const stored = localStorage.getItem("avatarConfig");
-    const config = stored
-      ? {
-          ...JSON.parse(stored),
-          token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "",
-        }
+    const token = process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "";
+
+    if (!token) {
+      router.push("/errors/MissingToken");
+      return;
+    }
+
+    const config: StartAvatarRequest = stored
+      ? JSON.parse(stored)
       : {
-          token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "",
           quality: AvatarQuality.Low,
           avatarName: AVATARS[0].avatar_id,
           knowledgeId: undefined,
@@ -37,13 +40,8 @@ export default function InteractiveAvatar() {
 
     const init = async () => {
       try {
-        if (!config.token) {
-          router.push("/errors/MissingToken");
-          return;
-        }
-
         await stopAvatar();
-        await startAvatar(config);
+        await startAvatar(token, config); // ✅ правильно передаём token отдельно
       } catch (error: any) {
         const msg = error?.message || "Unknown";
         if (msg.includes("active session")) {
