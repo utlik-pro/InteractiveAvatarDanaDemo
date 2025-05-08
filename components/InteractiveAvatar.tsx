@@ -1,26 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
 import {
   AvatarQuality,
   StartAvatarRequest,
 } from "@heygen/streaming-avatar";
 
-import { useEffect } from "react";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
 import { StreamingAvatarProvider } from "./logic";
 import { AVATARS } from "@/app/lib/constants";
-import { useRouter } from "next/navigation";
 
 export default function InteractiveAvatar() {
   const { startAvatar, stopAvatar, sessionState } = useStreamingAvatarSession();
-  const router = useRouter();
 
   useEffect(() => {
     const stored = localStorage.getItem("avatarConfig");
-    const config: StartAvatarRequest = stored
+    const baseConfig = stored
       ? JSON.parse(stored)
       : {
           quality: AvatarQuality.Low,
@@ -32,23 +30,21 @@ export default function InteractiveAvatar() {
         };
 
     const token = process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "";
-    if (!token) {
-      router.push("/errors/MissingToken");
-      return;
-    }
+
+    const config: StartAvatarRequest & { token?: string } = {
+      ...baseConfig,
+      token,
+    };
 
     const init = async () => {
       try {
-        await stopAvatar();
-        await startAvatar({ ...config, token });
-      } catch (error: any) {
-        const message = error?.message || "";
-        if (message.includes("active session")) {
-          router.push("/errors/ActiveSession");
-        } else if (message.includes("401") || message.includes("Unauthorized")) {
-          router.push("/errors/Unauthorized");
+        if (sessionState) await stopAvatar(); // остановим текущую сессию
+        await startAvatar(config);
+      } catch (err: any) {
+        if (err?.message?.includes("active session")) {
+          console.warn("Avatar session already active.");
         } else {
-          router.push("/errors/UnhandledError");
+          console.error("Failed to start avatar:", err);
         }
       }
     };
