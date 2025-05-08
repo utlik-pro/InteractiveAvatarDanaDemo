@@ -1,158 +1,40 @@
-import StreamingAvatar, {
-  ConnectionQuality,
-  StartAvatarRequest,
-  StreamingEvents,
-} from "@heygen/streaming-avatar";
-import { useCallback } from "react";
+import { createStreamingAvatarSession } from "@heygen/streaming-avatar";
+import { useRef } from "react";
 
-import {
-  StreamingAvatarSessionState,
-  useStreamingAvatarContext,
-} from "./context";
-import { useVoiceChat } from "./useVoiceChat";
-import { useMessageHistory } from "./useMessageHistory";
+let globalSession: any = null;
 
-export const useStreamingAvatarSession = () => {
-  const {
-    avatarRef,
-    basePath,
-    sessionState,
-    setSessionState,
-    stream,
-    setStream,
-    setIsListening,
-    setIsUserTalking,
-    setIsAvatarTalking,
-    setConnectionQuality,
-    handleUserTalkingMessage,
-    handleStreamingTalkingMessage,
-    handleEndMessage,
-    clearMessages,
-  } = useStreamingAvatarContext();
-  const { stopVoiceChat } = useVoiceChat();
+export function useStreamingAvatarSession() {
+  const sessionRef = useRef<any>(null);
 
-  useMessageHistory();
+  const startAvatar = async (config) => {
+    if (globalSession) {
+      console.warn("Avatar session already running.");
+      return;
+    }
 
-  const init = useCallback(
-    (token: string) => {
-      avatarRef.current = new StreamingAvatar({
-        token,
-        basePath: basePath,
+    try {
+      const session = await createStreamingAvatarSession({
+        token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN!,
+        config,
+        onMessage: (msg) => console.log("Message:", msg),
+        onStateChange: (state) => console.log("State:", state),
       });
 
-      return avatarRef.current;
-    },
-    [basePath, avatarRef],
-  );
+      sessionRef.current = session;
+      globalSession = session;
 
-  const handleStream = useCallback(
-    ({ detail }: { detail: MediaStream }) => {
-      setStream(detail);
-      setSessionState(StreamingAvatarSessionState.CONNECTED);
-    },
-    [setSessionState, setStream],
-  );
-
-  const stop = useCallback(async () => {
-    avatarRef.current?.off(StreamingEvents.STREAM_READY, handleStream);
-    avatarRef.current?.off(StreamingEvents.STREAM_DISCONNECTED, stop);
-    clearMessages();
-    stopVoiceChat();
-    setIsListening(false);
-    setIsUserTalking(false);
-    setIsAvatarTalking(false);
-    setStream(null);
-    await avatarRef.current?.stopAvatar();
-    setSessionState(StreamingAvatarSessionState.INACTIVE);
-  }, [
-    handleStream,
-    setSessionState,
-    setStream,
-    avatarRef,
-    setIsListening,
-    stopVoiceChat,
-    clearMessages,
-    setIsUserTalking,
-    setIsAvatarTalking,
-  ]);
-
-  const start = useCallback(
-    async (config: StartAvatarRequest, token?: string) => {
-      if (sessionState !== StreamingAvatarSessionState.INACTIVE) {
-        throw new Error("There is already an active session");
-      }
-
-      if (!avatarRef.current) {
-        if (!token) {
-          throw new Error("Token is required");
-        }
-        init(token);
-      }
-
-      if (!avatarRef.current) {
-        throw new Error("Avatar is not initialized");
-      }
-
-      setSessionState(StreamingAvatarSessionState.CONNECTING);
-      avatarRef.current.on(StreamingEvents.STREAM_READY, handleStream);
-      avatarRef.current.on(StreamingEvents.STREAM_DISCONNECTED, stop);
-      avatarRef.current.on(
-        StreamingEvents.CONNECTION_QUALITY_CHANGED,
-        ({ detail }: { detail: ConnectionQuality }) =>
-          setConnectionQuality(detail),
-      );
-      avatarRef.current.on(StreamingEvents.USER_START, () => {
-        setIsUserTalking(true);
-      });
-      avatarRef.current.on(StreamingEvents.USER_STOP, () => {
-        setIsUserTalking(false);
-      });
-      avatarRef.current.on(StreamingEvents.AVATAR_START_TALKING, () => {
-        setIsAvatarTalking(true);
-      });
-      avatarRef.current.on(StreamingEvents.AVATAR_STOP_TALKING, () => {
-        setIsAvatarTalking(false);
-      });
-      avatarRef.current.on(
-        StreamingEvents.USER_TALKING_MESSAGE,
-        handleUserTalkingMessage,
-      );
-      avatarRef.current.on(
-        StreamingEvents.AVATAR_TALKING_MESSAGE,
-        handleStreamingTalkingMessage,
-      );
-      avatarRef.current.on(StreamingEvents.USER_END_MESSAGE, handleEndMessage);
-      avatarRef.current.on(
-        StreamingEvents.AVATAR_END_MESSAGE,
-        handleEndMessage,
-      );
-
-      await avatarRef.current.createStartAvatar(config);
-
-      return avatarRef.current;
-    },
-    [
-      init,
-      handleStream,
-      stop,
-      setSessionState,
-      avatarRef,
-      sessionState,
-      setConnectionQuality,
-      setIsUserTalking,
-      handleUserTalkingMessage,
-      handleStreamingTalkingMessage,
-      handleEndMessage,
-      setIsAvatarTalking,
-    ],
-  );
-
-  return {
-    avatarRef,
-    sessionState,
-    stream,
-    initAvatar: init,
-    startAvatar: start,
-    stopAvatar: stop,
+      await session.start();
+    } catch (err) {
+      console.error("Failed to start avatar:", err);
+    }
   };
-};
+
+  const stopAvatar = () => {
+    if (sessionRef.current) {
+      sessionRef.current.stop();
+      globalSession = null;
+    }
+  };
+
+  return { startAvatar, stopAvatar };
+}
