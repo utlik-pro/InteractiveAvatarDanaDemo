@@ -1,40 +1,57 @@
-import { createStreamingAvatarSession } from "@heygen/streaming-avatar";
-import { useRef } from "react";
+"use client";
 
-let globalSession: any = null;
+import {
+  AvatarQuality,
+  StartAvatarRequest,
+} from "@heygen/streaming-avatar";
 
-export function useStreamingAvatarSession() {
-  const sessionRef = useRef<any>(null);
+import { useEffect } from "react";
+import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
+import { AvatarVideo } from "./AvatarSession/AvatarVideo";
+import { AvatarControls } from "./AvatarSession/AvatarControls";
+import { MessageHistory } from "./AvatarSession/MessageHistory";
+import { StreamingAvatarProvider } from "./logic";
+import { AVATARS } from "@/app/lib/constants";
 
-  const startAvatar = async (config) => {
-    if (globalSession) {
-      console.warn("Avatar session already running.");
-      return;
-    }
+export default function InteractiveAvatar() {
+  const { startAvatar, stopAvatar, sessionState } = useStreamingAvatarSession();
 
-    try {
-      const session = await createStreamingAvatarSession({
-        token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN!,
-        config,
-        onMessage: (msg) => console.log("Message:", msg),
-        onStateChange: (state) => console.log("State:", state),
-      });
+  useEffect(() => {
+    const stored = localStorage.getItem("avatarConfig");
+    const config: StartAvatarRequest = stored
+      ? {
+          ...JSON.parse(stored),
+          token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "",
+        }
+      : {
+          token: process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "",
+          quality: AvatarQuality.Low,
+          avatarName: AVATARS[0].avatar_id,
+          knowledgeId: undefined,
+          voice: {
+            voiceId: "default",
+          },
+        };
 
-      sessionRef.current = session;
-      globalSession = session;
+    const init = async () => {
+      try {
+        await stopAvatar(); // <== Добавлено
+        await startAvatar(config);
+      } catch (error) {
+        console.error("Failed to start avatar:", error);
+      }
+    };
 
-      await session.start();
-    } catch (err) {
-      console.error("Failed to start avatar:", err);
-    }
-  };
+    init();
+  }, []);
 
-  const stopAvatar = () => {
-    if (sessionRef.current) {
-      sessionRef.current.stop();
-      globalSession = null;
-    }
-  };
-
-  return { startAvatar, stopAvatar };
+  return (
+    <StreamingAvatarProvider>
+      <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+        <AvatarVideo />
+        <AvatarControls />
+        <MessageHistory />
+      </div>
+    </StreamingAvatarProvider>
+  );
 }
