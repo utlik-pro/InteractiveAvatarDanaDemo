@@ -1,67 +1,63 @@
+// ✅ components/InteractiveAvatar.tsx
+
 "use client";
 
-import { useEffect, useState } from "react";
-import { AvatarQuality } from "@heygen/streaming-avatar";
-
+import { AvatarQuality, StartAvatarRequest } from "@heygen/streaming-avatar";
+import { useEffect } from "react";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { AvatarVideo } from "./AvatarSession/AvatarVideo";
 import { AvatarControls } from "./AvatarSession/AvatarControls";
 import { MessageHistory } from "./AvatarSession/MessageHistory";
 import { StreamingAvatarProvider } from "./logic";
 import { AVATARS } from "@/app/lib/constants";
+import { useRouter } from "next/navigation";
 
-// Загружаем токен из ENV
-const TOKEN = process.env.NEXT_PUBLIC_HEYGEN_TOKEN;
+const defaultConfig: StartAvatarRequest = {
+  quality: AvatarQuality.Low,
+  avatarName: AVATARS[0].avatar_id,
+  knowledgeId: undefined,
+  voice: {
+    voiceId: "default",
+  },
+};
 
 export default function InteractiveAvatar() {
-  const { startAvatar, stopAvatar, sessionState } = useStreamingAvatarSession();
-  const [initialized, setInitialized] = useState(false);
+  const { startAvatar, stopAvatar } = useStreamingAvatarSession();
+  const router = useRouter();
 
   useEffect(() => {
     const init = async () => {
-      if (!TOKEN) {
-        console.error("❌ HEYGEN token is missing.");
+      const stored = localStorage.getItem("avatarConfig");
+      const config: StartAvatarRequest = stored
+        ? JSON.parse(stored)
+        : defaultConfig;
+
+      const token = process.env.NEXT_PUBLIC_HEYGEN_TOKEN || "";
+
+      if (!token) {
+        console.error("Missing token");
+        router.push("/errors/MissingToken");
         return;
       }
 
       try {
-        const stored = localStorage.getItem("avatarConfig");
-        const config = stored
-          ? JSON.parse(stored)
-          : {
-              quality: AvatarQuality.Low,
-              avatarName: AVATARS[0].avatar_id,
-              knowledgeId: undefined,
-              voice: {
-                voiceId: "default",
-              },
-            };
+        await stopAvatar();
+        await startAvatar(config);
+      } catch (err: any) {
+        console.error("Avatar startup error:", err);
 
-        await stopAvatar(); // На всякий случай остановим предыдущую
-        await startAvatar({ ...config, token: TOKEN });
-        setInitialized(true);
-      } catch (error) {
-        console.error("🚨 Failed to start avatar:", error);
-        if (error?.message?.includes("already an active session")) {
-          window.location.href = "/session-exists";
-        } else if (error?.message?.includes("401")) {
-          window.location.href = "/unauthorized";
+        if (err.message?.includes("There is already an active session")) {
+          router.push("/errors/ActiveSession");
+        } else if (err.message?.includes("401") || err.message?.includes("Unauthorized")) {
+          router.push("/errors/Unauthorized");
         } else {
-          window.location.href = "/error";
+          router.push("/errors/UnhandledError");
         }
       }
     };
 
     init();
   }, []);
-
-  if (!initialized) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <span className="text-gray-600">Запуск аватара...</span>
-      </div>
-    );
-  }
 
   return (
     <StreamingAvatarProvider>
