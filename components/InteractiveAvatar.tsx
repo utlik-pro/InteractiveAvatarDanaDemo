@@ -40,7 +40,7 @@ export default function InteractiveAvatar() {
         await stopAvatar(); // На всякий случай остановим предыдущую
         await startAvatar({ ...config, token: TOKEN });
         setInitialized(true);
-      } catch (error: any) {
+      } catch (error) {
         console.error("🚨 Failed to start avatar:", error);
         if (error?.message?.includes("already an active session")) {
           window.location.href = "/session-exists";
