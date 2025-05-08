@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  AvatarQuality,
-  StartAvatarRequest,
-} from "@heygen/streaming-avatar";
-
+import { AvatarQuality } from "@heygen/streaming-avatar";
 import { useEffect } from "react";
 import { useStreamingAvatarSession } from "./logic/useStreamingAvatarSession";
 import { AvatarVideo } from "./AvatarSession/AvatarVideo";
@@ -27,7 +23,7 @@ export default function InteractiveAvatar() {
       return;
     }
 
-    const config: StartAvatarRequest = stored
+    const config = stored
       ? JSON.parse(stored)
       : {
           quality: AvatarQuality.Low,
@@ -41,7 +37,7 @@ export default function InteractiveAvatar() {
     const init = async () => {
       try {
         await stopAvatar();
-        await startAvatar(token, config); // ✅ правильно передаём token отдельно
+        await startAvatar(config, token);
       } catch (error: any) {
         const msg = error?.message || "Unknown";
         if (msg.includes("active session")) {
@@ -56,7 +52,7 @@ export default function InteractiveAvatar() {
     };
 
     init();
-  }, []);
+  }, [router, startAvatar, stopAvatar]);
 
   return (
     <StreamingAvatarProvider>
